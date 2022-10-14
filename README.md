@@ -1,7 +1,6 @@
-# Ecommerce-and-cart-management
+# Project-Ecommerce-and-cart-management-Group38
 
-# Ecommerce-and-cart-management
-
+#Plutonium
 ## Project - Products Management
 
 ### Key points
@@ -11,7 +10,7 @@
   3) We test these APIs.
   4) We deploy these APIs.
   5) We integrate these APIs with frontend.
-  6) We will repeat steps from Step 1 to Step 5 for each object in this project.
+  6) We will repeat steps from Step 1 to Step 5 for each feature in this project.
 - This project is divided into 4 features namely User, Product, Cart and Order. You need to work on a single feature at a time. Once that is completed as per above mentioned steps. You will be instructed to move to next Feature.
 - In this project we are changing how we send token with a request. Instead of using a custom header key like x-api-key, you need to use Authorization header and send the JWT token as Bearer token.
 - Create a group database `groupXDatabase`. You can clean the db you previously used and resue that.
@@ -34,12 +33,12 @@
     shipping: {
       street: {string, mandatory},
       city: {string, mandatory},
-      pincode: {string, mandatory}
+      pincode: {number, mandatory}
     },
     billing: {
       street: {string, mandatory},
       city: {string, mandatory},
-      pincode: {string, mandatory}
+      pincode: {number, mandatory}
     }
   },
   createdAt: {timestamp},
@@ -89,7 +88,8 @@
 
 ### POST /login
 - Allow an user to login with their email and password.
-- On a successful login attempt return a JWT token contatining the userId, exp, iat.
+- On a successful login attempt return the userId and a JWT token contatining the userId, exp, iat.
+> **_NOTE:_** There is a slight change in response body. You should also return userId in addition to the JWT token.
 - __Response format__
   - _**On success**_ - Return HTTP status 200 and JWT token in response body. The response should be a JSON object like [this](#successful-response-structure)
   - _**On error**_ - Return a suitable error message with a valid HTTP status code. The response should be a JSON object like [this](#error-response-structure)
@@ -98,6 +98,7 @@
     "status": true,
     "message": "User login successfull",
     "data": {
+        "userId": "6165f29cfe83625cf2c10a5c",
         "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2MTYyODc2YWJkY2I3MGFmZWVhZjljZjUiLCJpYXQiOjE2MzM4NDczNzYsImV4cCI6MTYzMzg4MzM3Nn0.PgcBPLLg4J01Hyin-zR6BCk7JHBY-RpuWMG_oIK7aV8"
     }
 }
@@ -140,7 +141,7 @@
 }
 ```
 
-## PUT /user/:userId/profile (Authentication required)
+## PUT /user/:userId/profile (Authentication and Authorization required)
 - Allow an user to update their profile.
 - A user can update all the fields
 - Make sure that userId in url param and in token is same
@@ -215,11 +216,14 @@ Send [form-data](https://developer.mozilla.org/en-US/docs/Web/API/FormData)
 ### GET /products
 - Returns all products in the collection that aren't deleted.
   - __Filters__
-    - Size
-    - Product name
-    - Price - greater than or less than
+    - Size (The key for this filter will be 'size')
+    - Product name (The key for this filter will be 'name'). You should return all the products with name containing the substring recieved in this filter
+    - Price : greater than or less than a specific value. The keys are 'priceGreaterThan' and 'priceLessThan'. 
+    
+> **_NOTE:_** For price filter request could contain both or any one of the keys. For example the query in the request could look like { priceGreaterThan: 500, priceLessThan: 2000 } or just { priceLessThan: 1000 } )
+    
   - __Sort__
-    - Sorted by product price in ascending or descending
+    - Sorted by product price in ascending or descending. The key value pair will look like {priceSort : 1} or {priceSort : -1}
   _eg_ /products?size=XL&name=Nit%20grit
 - __Response format__
   - _**On success**_ - Return HTTP status 200. Also return the product documents. The response should be a JSON object like [this](#successful-response-structure)
@@ -268,22 +272,27 @@ Send [form-data](https://developer.mozilla.org/en-US/docs/Web/API/FormData)
 ### POST /users/:userId/cart (Add to cart)
 - Create a cart for the user if it does not exist. Else add product(s) in cart.
 - Get cart id in request body.
+- Get productId in request body.
 - Make sure that cart exist.
 - Add a product(s) for a user in the cart.
 - Make sure the userId in params and in JWT token match.
 - Make sure the user exist
 - Make sure the product(s) are valid and not deleted.
-- Get product(s) details in request body.
+- Get product(s) details in response body.
 - __Response format__
   - _**On success**_ - Return HTTP status 201. Also return the cart document. The response should be a JSON object like [this](#successful-response-structure)
   - _**On error**_ - Return a suitable error message with a valid HTTP status code. The response should be a JSON object like [this](#error-response-structure)
 
-### PUT /users/:userId/cart (Remove product from the cart)
+### PUT /users/:userId/cart (Remove product / Reduce a product's quantity from the cart)
+- Updates a cart by either decrementing the quantity of a product by 1 or deleting a product from the cart.
 - Get cart id in request body.
+- Get productId in request body.
+- Get key 'removeProduct' in request body. 
 - Make sure that cart exist.
-- Remove product(s) from cart.
+- Key 'removeProduct' denotes whether a product is to be removed({removeProduct: 0}) or its quantity has to be decremented by 1({removeProduct: 1}).
 - Make sure the userId in params and in JWT token match.
 - Make sure the user exist
+- Get product(s) details in response body.
 - Check if the productId exists and is not deleted before updating the cart.
 - __Response format__
   - _**On success**_ - Return HTTP status 200. Also return the updated cart document. The response should be a JSON object like [this](#successful-response-structure)
@@ -294,8 +303,19 @@ Send [form-data](https://developer.mozilla.org/en-US/docs/Web/API/FormData)
 - Make sure that cart exist.
 - Make sure the userId in params and in JWT token match.
 - Make sure the user exist
+- Get product(s) details in response body.
 - __Response format__
-  - _**On success**_ - Return HTTP status 200. Also return the updated product document. The response should be a JSON object like [this](#successful-response-structure)
+  - _**On success**_ - Return HTTP status 200. Return the cart document. The response should be a JSON object like [this](#successful-response-structure)
+  - _**On error**_ - Return a suitable error message with a valid HTTP status code. The response should be a JSON object like [this](#error-response-structure)
+
+### DELETE /users/:userId/cart
+- Deletes the cart for the user.
+- Make sure that cart exist.
+- Make sure the userId in params and in JWT token match.
+- Make sure the user exist
+- cart deleting means array of items is empty, totalItems is 0, totalPrice is 0.
+- __Response format__
+  - _**On success**_ - Return HTTP status 204. Return a suitable message. The response should be a JSON object like [this](#successful-response-structure)
   - _**On error**_ - Return a suitable error message with a valid HTTP status code. The response should be a JSON object like [this](#error-response-structure)
 
 
@@ -312,9 +332,11 @@ Send [form-data](https://developer.mozilla.org/en-US/docs/Web/API/FormData)
   }],
   totalPrice: {number, mandatory, comment: "Holds total price of all the items in the cart"},
   totalItems: {number, mandatory, comment: "Holds total number of items in the cart"},
-  totalQuantity: {number, mandatory, comment: "Holds total number of items in the cart"},
+  totalQuantity: {number, mandatory, comment: "Holds total number of quantity in the cart"},
   cancellable: {boolean, default: true},
-  status: {string, default: 'pending', enum[pending, completed, cancled]}
+  status: {string, default: 'pending', enum[pending, completed, cancled]},
+  deletedAt: {Date, when the document is deleted}, 
+  isDeleted: {boolean, default: false},
   createdAt: {timestamp},
   updatedAt: {timestamp},
 }
