@@ -3,9 +3,10 @@ const ObjectId = mongoose.Schema.Types.ObjectId
 
 
   const cartSchema = new mongoose.Schema({
-   userId:{type:ObjectId, required:true, unique:true},
+   userId:{type:ObjectId,ref:"User", required:true, unique:true},
    items:[{
-    productId:{type:ObjectId, required:true},
+    _id : {id:false},
+    productId:{type:ObjectId,ref:"Product", required:true},
     quantity:{type:Number, required:true, default:1}
     }],
     totalPrice:{type:Number, required:true},

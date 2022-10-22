@@ -1,4 +1,3 @@
-const userModel = require("../models/userModel")
 const {redis,validator,aws} = require("../utils")
 const {productModel} = require("../models")
 
@@ -9,7 +8,7 @@ const newProduct = async function(req,res){
             return res.status(400).send({status:false, message:"pls provide product details"}) 
         }
 
-        console.log(req.body)
+      
         let {title,description,price,currencyId,currencyFormat,isFreeShipping,style,availableSizes,installments,productImage}=req.body
 
         for(let key in req.body){
@@ -35,9 +34,10 @@ const newProduct = async function(req,res){
         
         let numberfields = ["price","installments"]
         for(let key in req.body){
-            key=Number(key)
-            if(numberfields.includes(key) && typeof key != "number"){
-                return res.status(400).send({status:false,message:`${key} should be type number`})
+            if(numberfields.includes(key)){
+                if(isNaN(req.body[key])){
+                    return res.status(400).send({status:false,message:`${key} should be number`})
+                }
             }
         }
 
@@ -62,8 +62,7 @@ const newProduct = async function(req,res){
 
         if(availableSizes){
                 let arr2 = ["S", "XS","M","X", "L","XXL", "XL"]
-                    let arr = availableSizes.split(",").join(" ")
-                    arr = arr.split(" ").map(x=>x.trim().toUpperCase()).filter(x=>x.trim().length>0)
+                    let arr = validator.makingArray(availableSizes.toUpperCase()) 
                     for (let i = 0; i < arr.length; i++) {
                         let x =arr[i]
                         if(!arr2.includes(x)){
@@ -77,12 +76,16 @@ const newProduct = async function(req,res){
 
         if(files && files.length>0){
             const url = await aws.uploadFile(files[0])
+            if(!validator.isValidImageUrl(url)){
+                return res.status(400).send({status:false, message:"Invalid profileImage url"})
+            }
             productImage = url
         }
         else{
             return res.status(400).send({status:false, message:"no file found"})
         }
 
+        // uniqueness of title
         const duplicateData= await productModel.findOne({title})
         if(duplicateData){
             return res.status(409).send({status:false, message:"Title is already taken"})
@@ -106,6 +109,7 @@ const updateProduct = async function(req,res){
         if(!validator.isValidObjectId(productId)){
             return res.status(400).send({status:false, message:"Invalid productId"})
         }
+
         if(!(Object.keys(req.body).length!=0 || req.files)){
             return res.status(400).send({status:false, message:"pls provide product details for updation"}) 
         }
@@ -131,8 +135,7 @@ const updateProduct = async function(req,res){
             filter.description = description
         }
         if(price){
-            price=Number(price)
-            if(typeof price != "number"){
+            if(isNaN(price)){
                 return res.status(400).send({status:false, message:"Price should be type number"})
             }
             filter.price = price
@@ -142,17 +145,15 @@ const updateProduct = async function(req,res){
             if(currencyId!=currId){
                 return res.status(400).send({status:false, message:"only Indian currencyId is valid"})
             }
-            
         }
         if(currencyFormat){
             let currFormat = "₹"
             if(currencyFormat!=currFormat){
                 return res.status(400).send({status:false, message:"only Indian currencyFormat is valid"})
             }
-            
         }
         if(isFreeShipping){
-            // console.log((isFreeShipping.trim().toLowerCase()))
+           
             if(!(isFreeShipping.trim().toLowerCase()=="true"||isFreeShipping.trim().toLowerCase()=="false")){
                 return res.status(400).send({status:false, message:"Type of isFreeShipping should be boolean"})
             }
@@ -167,8 +168,7 @@ const updateProduct = async function(req,res){
       
         if(availableSizes){
             let arr2 = ["S", "XS","M","X", "L","XXL", "XL"]        
-            let arr = availableSizes.split(",").join(" ")
-            arr=arr.split(" ").map(x=>x.trim().toUpperCase()).filter(x=>x.trim().length>0)
+            let arr = validator.makingArray(availableSizes.toUpperCase())            
             for (let i = 0; i < arr.length; i++) {
                 let x =arr[i]
                 if(!arr2.includes(x)){
@@ -180,7 +180,7 @@ const updateProduct = async function(req,res){
 
         if(installments){
             installments=Number(installments)
-            if(typeof installments !== "number"){
+            if(isNaN(installments)){
                 return res.status(400).send({status:false, message:"Type of installment should be number"})
             }
             filter.installments = installments
@@ -190,12 +190,16 @@ const updateProduct = async function(req,res){
 
         if(files && files.length>0){
             const url = await aws.uploadFile(files[0])
+            if(!validator.isValidImageUrl(url)){
+                return res.status(400).send({status:false, message:"Invalid profileImage url"})
+            }
             filter.productImage = url
         }
         
-
         const updatedProduct = await productModel.findOneAndUpdate({_id:productId,isDeleted:false},filter,{new : true})
-
+        if(!updatedProduct){
+            return res.status(404).send({status:false, message:"Product not found"})
+        }
         return res.status(200).send({status:true, message:"Product updated successfully", data:updatedProduct})
 
     }catch(err){  
@@ -263,30 +267,18 @@ const getByQuery = async function(req,res){
         }
 
         if(size){
-            if(Object.prototype.toString.call(size)=="[object String]"){
-                let arrayOfSizes = validator.makingArray(size.toUpperCase())
-                for(let i=0;i<arrayOfSizes.length;i++){
-                    let arr=["S", "XS","M","X", "L","XXL", "XL"]
-                    if(!arr.includes(i)){
-                        return res.status(400).send({status:false, message:`size can only be from-${arr.join(",")}`})
-                    }
+            let arrayOfSizes = validator.makingArray(size.toUpperCase())
+          
+            for(let i=0;i<arrayOfSizes.length;i++){
+                let arr=["S","XS","M","X","L","XXL", "XL"]
+                if(!arr.includes(arrayOfSizes[i])){
+                    return res.status(400).send({status:false, message:`size can only be from-${arr.join(",")}`})
                 }
-                params.size={$in:[...arrayOfSizes]}
             }
-            else if(Object.prototype.toString.call(size)=="[object Array]"){
-                size = size.map(x=>x.trim().split(" ").filter(x=>x.trim().length>0)).flat(Infinity)
-                for(let i=0;i<size.length;i++){
-                    let arr=["S", "XS","M","X", "L","XXL", "XL"]
-                    if(!arr.includes(i)){
-                        return res.status(400).send({status:false, message:`size can only be from-${arr.join(",")}`})
-                    }
-                }
-                params.size={$in:[...size]}
-            }
+            params.availableSizes={$in:[...arrayOfSizes]} 
         }
-        // console.log(name)
+      
         if(name){
-            
             name=name.trim()
             if(!validator.isLetters(name)){
                 return res.status(400).send({status:false, message:"product name can only contains letters"})
@@ -294,9 +286,16 @@ const getByQuery = async function(req,res){
             params.title={$regex:name, $options:"i"}
         }
 
-        let arr=[priceGreaterThan,priceLessThan]
-
+        // let arr=[priceGreaterThan,priceLessThan]
+        if(priceLessThan && isNaN(priceLessThan)){
+                return res.status(400).send({status:false, message:"Type of priceLessThan should be number"})
+            
+        }
+        if(priceGreaterThan && isNaN(priceGreaterThan) ){
+            return res.status(400).send({status:false, message:"Type of priceGreaterThan should be number"})
+        }
         if(priceLessThan && priceGreaterThan){
+
             params.$and=[{price:{$gt:priceGreaterThan}} , {price:{$lt:priceLessThan}}]
         }
         else{
@@ -311,7 +310,7 @@ const getByQuery = async function(req,res){
         }
 
         if(priceSort){
-            // console.log(priceSort)
+         
             if(!(priceSort == 1 || priceSort == -1)){
                 return res.status(400).send({status:false, message:"priceSort can be -1 or 1"})
             }
@@ -324,16 +323,13 @@ const getByQuery = async function(req,res){
             return res.status(404).send({status:false, message:"no product found"})
         }
         const num = product.length
-        return res.status(200).send({status:true, message:`products-${num}`, data:product})
+        return res.status(200).send({status:true, message: "Success", count:`products-${num}`, data:product})
     }
     catch(err){
         return res.status(500).send({status:false, message:err.message})
     
     }
 }
-
-
-
 
 
 module.exports={

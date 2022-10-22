@@ -10,9 +10,9 @@ const newUser = async function(req,res){
     if(Object.keys(req.body).length==0){
         return res.status(400).send({status:false, message:"pls provide user details"}) 
     }
-    // console.log(req.body)
+   
     let {fname,lname,email,profileImage,phone,password,address}=req.body
-    
+    // console.log(req.body)
     //======================= Check for mandatory fields & Validating fields that has type "string"  ==========================
     let mandatoryFields = ["fname","lname","email","phone","password","address"]
     for(let key of mandatoryFields){
@@ -20,7 +20,7 @@ const newUser = async function(req,res){
             return res.status(400).send({status:false, message:`value of ${key} must be present `}) 
         }
     }
-
+    
     // validating fname
     if(!validator.isLetters(fname)){
         return res.status(400).send({status:false, message:"fname can only contain letters"})
@@ -44,25 +44,21 @@ const newUser = async function(req,res){
 
     // validating password
     if(!validator.isValidPassword(password)){
-        return res.status(400).send({status:false, message:"password must contain uppercase,lowercase,number and special charactor "}) 
+        return res.status(400).send({status:false, message:"password length must be in between 8-15 / password must contain uppercase,lowercase,number and special character "}) 
 
     }
 
-    // generating encrypted password
-    // hash Sting(round) . has(pass) ///  
+    // generating encrypted password 
     const encryptPass = bcrypt.hash(password,10,function(err,result){
         if(err){
             return res.status(400).send({status:false, message:err})
         }
         else{
-            // console.log(result)
             password=result
         }
     })
 
-   
     // validating address
-    
     try{
         address=JSON.parse(address)
     }
@@ -105,14 +101,16 @@ const newUser = async function(req,res){
 
     // uploading files on aws s3
     const files = req.files
-    // console.log(files)
 
     if(files && files.length>0){
         const url = await aws.uploadFile(files[0])
+        if(!validator.isValidImageUrl(url)){
+            return res.status(400).send({status:false, message:"Invalid profileImage url"})
+        }
         profileImage = url
     }
     else{
-        return res.status(400).send({status:false, message:"no file found"})
+        return res.status(400).send({status:false, message:"profile image is mandatory"})
     }
 
     // Check for uniqueness for email and phone
@@ -164,18 +162,17 @@ const login = async function(req,res){
 
         // let isValid = true
         const encryptPass = bcrypt.compare(password,user.password,function(err,result){
-            // console.log(result)
+           
             if(result){
                 let token = jwt.sign(
                     {
-                      userId: user._id.toString(),
-                      
+                    userId: user._id.toString(),
                     },
                     "confidential-Group38-secret-key", 
                     { expiresIn: '1h' }
-                  );
-              
-                  return res.status(200).send({ status: true, message: "login successful", data: {  userId: user._id ,token: token } });
+                );
+                res.setHeader("Authorization",token) 
+                return res.status(200).send({ status: true, message: "login successful", data: {  userId: user._id ,token: token } });
             }
             else{
                 return res.status(401).send({status:false, message:"Invalid credentials"})
@@ -196,9 +193,9 @@ const updateUser = async function(req,res){
         }
 
         if(!(Object.keys(req.body).length!=0 || req.files)){
-            return res.status(400).send({status:false, message:"pls provide user details"}) 
+            return res.status(400).send({status:false, message:"pls provide user details to update"}) 
         }
-        console.log(req.body)
+       
         let {fname,lname,email,profileImage,phone,password,address}=req.body
         let obj={}
     
@@ -237,8 +234,7 @@ const updateUser = async function(req,res){
         // validating password
         if(password){
             if(!validator.isValidPassword(password)){
-                return res.status(400).send({status:false, message:"password must contain uppercase,lowercase,number and special charactor "}) 
-        
+                return res.status(400).send({status:false, message:"password must contain uppercase,lowercase,number and special character "}) 
             }
          
             const encryptPass = bcrypt.hash(password,10,function(err,result){
@@ -246,7 +242,6 @@ const updateUser = async function(req,res){
                     return res.status(400).send({status:false, message:err})
                 }
                 else{
-                    // console.log(result)
                     obj.password=result
                 }
             })
@@ -316,10 +311,12 @@ const updateUser = async function(req,res){
     
         // uploading files on aws s3
         const files = req.files
-        // console.log(files)
     
         if(files && files.length>0){
             const url = await aws.uploadFile(files[0])
+            if(!validator.isValidImageUrl(url)){
+                return res.status(400).send({status:false, message:"Invalid profileImage url"})
+            }
             obj.profileImage = url
         }
         
@@ -357,16 +354,9 @@ const updateUser = async function(req,res){
 
 const getUser = async function(req,res){
     try{
-        
         const userId = req.params.userId
-        
-
         if(!validator.isValidObjectId(userId)){
             return res.status(400).send({status:false, message:"Invalid userId"})
-        }
-        
-        if(req.userId!=userId){
-            return res.status(403).send({status:false, message:"unauthorized"})
         }
         
         const userDetails = await userModel.findById(userId)
@@ -374,6 +364,10 @@ const getUser = async function(req,res){
             return res.status(404).send({status:false, message:"no user found"})
         }
 
+        if(req.userId!=userId){
+            return res.status(403).send({status:false, message:"unauthorized"})
+        }
+        
         return res.status(200).send({status:true, message:"User profile details", data:userDetails})
     }
     catch(err){

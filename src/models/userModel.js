@@ -1,18 +1,10 @@
 const mongoose = require("mongoose")
 
-// const addressSchema = new mongoose.Schema(
-//     {
-//         street: {type:String, required:true},
-//         city: {type:String, required:true},
-//         pincode: {type:Number, required:true}
-//     }
-// )
-
 const userSchema = new mongoose.Schema(
     {
     fname: {type:String, required:true},
     lname: {type:String, required:true},
-    email: {type:String, required:true, unique:true},
+    email: {type:String, required:true, unique:true, trim:true, lowercase:true},
     profileImage: {type:String, required:true}, // s3 link
     phone: {type:String, required:true, unique:true}, 
     password: {type:String, required:true, minLen: 8, maxLen:15}, // encrypted password
@@ -32,5 +24,4 @@ const userSchema = new mongoose.Schema(
 },{timestamps:true})
 
 
-
-module.exports=mongoose.model("User",userSchema)
+module.exports = mongoose.model("User",userSchema)

@@ -18,10 +18,17 @@
 // console.log(arr )
 
 
-const axios = require("axios")
-let option={
-    method:"get/post",
-    url:"<url>"
-}
-let data = await axios(option)
+// const axios = require("axios")
+// let option={
+//     method:"get/post",
+//     url:"<url>"
+// }
+// let data = await axios(option)
 
+// console.log(sortPeople(["Mary","John","Emma"], [180,165,170]))
+
+// let obj = {a:"a",c:"c",b:"b"}
+// let hoo = obj.sort()
+// console.log(hoo)
+let data = Array.apply(null,{length:10}).map(Function.call,Math.random)
+console.log(data)
